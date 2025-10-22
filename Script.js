@@ -1,121 +1,148 @@
 // public/script.js
 
-// DOM elements ko select karna
-const messageForm = document.getElementById('message-form');
-const messageInput = document.getElementById('message-input');
-const messagesContainer = document.getElementById('chat-messages-container');
+document.addEventListener('DOMContentLoaded', () => {
 
-// Form submit hone par event listener
-messageForm.addEventListener('submit', async (event) => {
-    event.preventDefault(); // Page reload hone se rokna
-    const userInput = messageInput.value.trim();
+    // --- 1. INITIALIZATION & DOM ELEMENTS ---
 
-    if (userInput === '') return; // Agar input khali hai to kuchh na karein
+    const socket = io(); // Socket.IO connection shuru karna
 
-    // User ka message turant UI me dikhana
-    appendMessage(userInput, 'sent');
-    messageInput.value = ''; // Input field clear karna
-    scrollToBottom();
+    // Saare zaroori HTML elements ko select karna
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const messagesContainer = document.getElementById('chat-messages-container');
+    const sendButton = document.querySelector('.send-btn');
 
-    // Loading indicator dikhana
-    appendLoadingIndicator();
+    // --- 2. SOCKET.IO EVENT LISTENERS ---
 
-    try {
-        // Backend ko request bhejna
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ message: userInput }),
-        });
+    // Server se naye message aane par
+    socket.on('new message', (msg) => {
+        // Typing indicator ko hatana
+        removeTypingIndicator();
+        // Bot ka message screen par dikhana
+        appendMessage(msg);
+        // Form ko phir se enable karna
+        setFormEnabled(true);
+    });
 
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+    // Server se bot ke typing status aane par
+    socket.on('bot typing', () => {
+        showTypingIndicator();
+    });
+    
+    // Connection successful hone par
+    socket.on('connect', () => {
+        console.log('Successfully connected to the server!');
+    });
+
+    // Connection tootne par
+    socket.on('disconnect', () => {
+        console.warn('Disconnected from the server.');
+    });
+
+
+    // --- 3. UI EVENT LISTENERS ---
+
+    // Message form submit hone par
+    messageForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const messageText = messageInput.value.trim();
+
+        if (messageText) {
+            // User ka message turant UI me dikhana (instant feedback)
+            const userMessage = {
+                text: messageText,
+                sender: 'You',
+                type: 'text'
+            };
+            appendMessage(userMessage);
+
+            // Message ko server par bhejna
+            socket.emit('user message', messageText);
+
+            // Input field khali karna aur form disable karna
+            messageInput.value = '';
+            setFormEnabled(false);
+        }
+    });
+
+
+    // --- 4. HELPER FUNCTIONS (DOM Manipulation & UI) ---
+
+    /**
+     * Naya message UI me add karta hai.
+     * @param {object} msg - Message object { text, sender, type, data }
+     */
+    function appendMessage(msg) {
+        const { text, sender, type, data } = msg;
+        const messageTypeClass = (sender === 'You') ? 'sent' : 'received';
+
+        // Message ka HTML structure banana
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', messageTypeClass);
+        
+        let messageContentHTML = '';
+        
+        // Image message ke liye alag HTML
+        if (type === 'image' && data) {
+            messageContentHTML = `
+                <p>${text}</p>
+                <img src="${data}" alt="Generated Image" style="max-width: 100%; border-radius: 10px; margin-top: 8px;">
+            `;
+        } else {
+            messageContentHTML = text;
         }
 
-        const botData = await response.json();
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
-        // Loading indicator hatana
-        removeLoadingIndicator();
-        
-        // Backend se aaye response ko UI me dikhana
-        appendMessage(botData.reply, 'received', botData.type, botData.data);
+        messageElement.innerHTML = `
+            ${sender !== 'You' ? `<div class="sender-name">${sender}</div>` : ''}
+            <div class="message-bubble">${messageContentHTML}</div>
+            <span class="timestamp">${timestamp}</span>
+        `;
 
-    } catch (error) {
-        console.error('Error:', error);
-        removeLoadingIndicator();
-        appendMessage("Sorry, I couldn't connect. Please try again.", 'received', 'error');
+        messagesContainer.appendChild(messageElement);
+        scrollToBottom();
     }
+    
+    /** Bot ke liye typing indicator dikhata hai */
+    function showTypingIndicator() {
+        // Agar pehle se hai to dobara na banaye
+        if (document.querySelector('.typing-indicator')) return;
+
+        const indicatorElement = document.createElement('div');
+        indicatorElement.classList.add('message', 'received', 'typing-indicator');
+        indicatorElement.innerHTML = `
+            <div class="sender-name">Gemibot</div>
+            <div class="message-bubble">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+        `;
+        messagesContainer.appendChild(indicatorElement);
+        scrollToBottom();
+    }
+
+    /** Typing indicator ko hatata hai */
+    function removeTypingIndicator() {
+        const indicator = document.querySelector('.typing-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    /** Chat window ko hamesha neeche scroll karke rakhta hai */
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    /** Form input aur button ko enable/disable karta hai */
+    function setFormEnabled(isEnabled) {
+        messageInput.disabled = !isEnabled;
+        sendButton.disabled = !isEnabled;
+        if (isEnabled) {
+            messageInput.focus();
+        }
+    }
+    
+    // Shuru me window ko scroll karke neeche rakhein
+    scrollToBottom();
 });
-
-/**
- * Naya message UI me add karne wala function
- * @param {string} text - Message ka content
- * @param {string} type - 'sent' ya 'received'
- * @param {string} [dataType='text'] - 'text', 'image', ya 'error'
- * @param {string} [dataUrl=''] - Image ka URL
- */
-function appendMessage(text, type, dataType = 'text', dataUrl = '') {
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message', type);
-
-    const bubbleDiv = document.createElement('div');
-    bubbleDiv.classList.add('message-bubble');
-
-    if (dataType === 'image' && dataUrl) {
-        // Image ke liye content
-        const p = document.createElement('p');
-        p.textContent = text;
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.alt = 'Generated Image';
-        img.style.maxWidth = '100%';
-        img.style.borderRadius = '10px';
-        img.style.marginTop = '8px';
-        bubbleDiv.appendChild(p);
-        bubbleDiv.appendChild(img);
-    } else {
-        // Normal text ke liye
-        bubbleDiv.textContent = text;
-    }
-
-    const timestampSpan = document.createElement('span');
-    timestampSpan.classList.add('timestamp');
-    const now = new Date();
-    timestampSpan.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    messageDiv.appendChild(bubbleDiv);
-    messageDiv.appendChild(timestampSpan);
-    messagesContainer.appendChild(messageDiv);
-    scrollToBottom();
-}
-
-/** Loading indicator add karne wala function */
-function appendLoadingIndicator() {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.classList.add('message', 'received', 'loading-indicator');
-    loadingDiv.innerHTML = `
-        <div class="message-bubble">
-            <span>.</span><span>.</span><span>.</span>
-        </div>
-    `;
-    messagesContainer.appendChild(loadingDiv);
-    scrollToBottom();
-}
-
-/** Loading indicator hatane wala function */
-function removeLoadingIndicator() {
-    const indicator = document.querySelector('.loading-indicator');
-    if (indicator) {
-        indicator.remove();
-    }
-}
-
-/** Chat ko neeche scroll karne wala function */
-function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// Initial scroll to bottom
-window.onload = scrollToBottom;
