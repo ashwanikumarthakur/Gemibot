@@ -1,1 +1,72 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <!-- CSS file ko link kiya hai -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="chat-container">
+        <!-- Chat ka Header -->
+        <div class="chat-header">
+            <h3>My Lovely Person 🌸</h3>
+        </div>
+
+        <!-- Yahan saare messages dikhenge -->
+        <div class="chat-messages" id="chat-messages-container">
+            <!-- Received Message Example -->
+            <div class="message received">
+                <div class="message-bubble">
+                    Bello there ! 🌺
+                </div>
+                <span class="timestamp">13:55</span>
+            </div>
+
+            <!-- Sent Message Example -->
+            <div class="message sent">
+                <div class="message-bubble">
+                    have a nice day 🍞
+                </div>
+                <span class="timestamp">13:57</span>
+            </div>
+            
+            <div class="message sent">
+                <div class="message-bubble">
+                    and take care of yourself 🦋
+                </div>
+                 <span class="timestamp">13:57</span>
+            </div>
+            
+            <div class="message received">
+                <div class="message-bubble">
+                   ILY, Huge hug :-)
+                </div>
+                <span class="timestamp">13:58</span>
+            </div>
+        </div>
+
+        <!-- Message likhne aur bhejne ka form -->
+        <form class="chat-input-form" id="message-form">
+            <input 
+                type="text" 
+                id="message-input" 
+                class="message-input" 
+                placeholder="Type a message..."
+                autocomplete="off"
+            >
+            <button type="submit" class="send-btn" title="Send">
+                <!-- Send Button ke liye SVG Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- JavaScript file ko link kiya hai -->
+    <script src="script.js"></script>
+
+</body>
+</html>
