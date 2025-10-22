@@ -1,1 +1,138 @@
+/* Google Font (Optional, for better look) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap');
 
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f0f4f8; /* Light blue-ish grey background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.chat-container {
+    width: 375px;
+    height: 90vh;
+    max-height: 800px;
+    background-color: #ffffff;
+    border-radius: 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-header {
+    background-color: #fff9c4; /* Light yellow header */
+    padding: 15px 20px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.chat-header h3 {
+    color: #5d4037;
+    font-weight: 500;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #e3f2fd; /* Light blue chat background */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Messages ke beech mein space */
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+}
+
+.message-bubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.timestamp {
+    font-size: 11px;
+    color: #777;
+    margin-top: 4px;
+}
+
+/* Sent messages (Right side) */
+.message.sent {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.message.sent .message-bubble {
+    background-color: #fff59d; /* Yellow bubble */
+    color: #333;
+    border-bottom-right-radius: 5px;
+}
+
+/* Received messages (Left side) */
+.message.received {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.message.received .message-bubble {
+    background-color: #d1c4e9; /* Purple bubble */
+    color: #333;
+    border-bottom-left-radius: 5px;
+}
+
+.chat-input-form {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #ffffff;
+    border-top: 1px solid #ddd;
+}
+
+.message-input {
+    flex-grow: 1;
+    border: none;
+    background-color: #f1f1f1;
+    border-radius: 25px;
+    padding: 12px 20px;
+    font-size: 15px;
+    outline: none;
+}
+
+.message-input::placeholder {
+    color: #aaa;
+}
+
+.send-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.send-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: #007bff; /* Blue send icon */
+    transition: fill 0.2s;
+}
+
+.send-btn:hover svg {
+    fill: #0056b3;
+}
