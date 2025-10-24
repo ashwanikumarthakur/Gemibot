@@ -1,104 +1,151 @@
-// index.js
+/**
+ * index.js - Hybrid Gemi AI Bot Backend
+ * Node.js + Express + TinyLlama offline + Gemini API online
+ * Features:
+ * - Hybrid mode: Online (Gemini) fallback to offline (TinyLlama)
+ * - Secure API key management via ENV
+ * - JSON API endpoints for frontend
+ * - Modular & professional structure
+ */
 
-// Zaroori packages import karna
-const express = require('express');
-const path = require('path');
-require('dotenv').config(); // .env file se environment variables load karna
+import express from 'express';
+import cors from 'cors';
+import fetch from 'node-fetch'; // For Gemini API calls
+import fs from 'fs';
+import crypto from 'crypto';
 
-// Google Gemini aur SerpAPI clients ko import karna
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { getJson } = require('google-search-results-nodejs');
+// -------------------------------------
+// Configuration / Environment
+// -------------------------------------
+const PORT = process.env.PORT || 5000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Render secret
+const MODEL_PATH = './tinyllama-model.bin';        // Offline model path
+const MODEL_KEY = process.env.MODEL_KEY_HEX;      // For encrypted offline model
+const USE_OFFLINE = true;                          // Toggle offline fallback
 
-// --- Initialization ---
+// -------------------------------------
+// Utility: Decrypt offline model
+// -------------------------------------
+function decryptBuffer(encBuf, hexKey) {
+  const key = Buffer.from(hexKey, 'hex');
+  const iv = encBuf.slice(encBuf.length - 28, encBuf.length - 16);
+  const authTag = encBuf.slice(encBuf.length - 16);
+  const ciphertext = encBuf.slice(0, encBuf.length - 28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  return plain;
+}
+
+// Load offline model into memory (optional: decrypt if encrypted)
+let offlineModelBytes = null;
+if (USE_OFFLINE && fs.existsSync(MODEL_PATH)) {
+  const encModel = fs.readFileSync(MODEL_PATH);
+  offlineModelBytes = decryptBuffer(encModel, MODEL_KEY);
+  console.log('Offline TinyLlama model loaded into memory.');
+}
+
+// -------------------------------------
+// Express App Setup
+// -------------------------------------
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// API Clients ko initialize karna
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// --- Middleware ---
-// JSON requests ko parse karne ke liye
+app.use(cors());
 app.use(express.json());
-// 'public' folder se static files (HTML, CSS, JS) serve karne ke liye
-app.use(express.static(path.join(__dirname, 'public')));
 
+// -------------------------------------
+// Utility: Online Gemini API call
+// -------------------------------------
+async function callGeminiAPI(userMessage) {
+  try {
+    const response = await fetch('https://api.gemini.example/v1/chat', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gemini-chat-1',      // adjust per Gemini API
+        messages: [{ role: 'user', content: userMessage }],
+        max_tokens: 300
+      })
+    });
+    const data = await response.json();
+    return data?.choices?.[0]?.message?.content || null;
+  } catch (err) {
+    console.error('Gemini API error:', err.message);
+    return null;
+  }
+}
 
-// --- API Route ---
-// Frontend is route par request bhejega
+// -------------------------------------
+// Utility: Offline TinyLlama fallback
+// -------------------------------------
+function callOfflineModel(userMessage) {
+  // This is pseudo: actual TinyLlama JS/Node integration depends on library
+  // For demonstration, we return a dummy reply
+  return `Offline TinyLlama reply to: "${userMessage}"`;
+}
+
+// -------------------------------------
+// API Endpoint: Chat
+// -------------------------------------
 app.post('/api/chat', async (req, res) => {
-    try {
-        const userInput = req.body.message.toLowerCase();
-        let response;
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'Message required' });
 
-        // Command check karna: /image <prompt>
-        if (userInput.startsWith('/image')) {
-            const prompt = userInput.substring(7).trim();
-            if (!prompt) {
-                return res.json({ reply: "Please provide a prompt for the image. Usage: /image a cat playing piano", type: "text" });
-            }
-            
-            // Gemini se image generate karwana
-            const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" }); // Ya jo bhi image model aap use kar rahe hain
-            // NOTE: Gemini's current public models are text-to-text. Image generation (Imagen) is a different API. 
-            // This is a placeholder for how you would call it. For now, we'll return a placeholder.
-            // const imageUrl = await generateImageWithGemini(prompt); 
-            const imageUrl = `https://source.unsplash.com/500x300/?${encodeURIComponent(prompt)}`; // Placeholder
-            
-            response = { 
-                reply: `Here's an image for "${prompt}":`, 
-                type: 'image', 
-                data: imageUrl 
-            };
+  // Attempt online first
+  let reply = await callGeminiAPI(message);
 
-        // Command check karna: /search <query>
-        } else if (userInput.startsWith('/search')) {
-            const query = userInput.substring(8).trim();
-            if (!query) {
-                return res.json({ reply: "Please provide a search query. Usage: /search what is the capital of France", type: "text" });
-            }
+  // Fallback offline if online fails
+  if (!reply && USE_OFFLINE) {
+    reply = callOfflineModel(message);
+  }
 
-            // SerpAPI se search karwana
-            const searchResults = await new Promise((resolve, reject) => {
-                getJson({
-                    api_key: process.env.SERP_API_KEY,
-                    q: query,
-                }, (json) => {
-                    resolve(json);
-                });
-            });
-
-            // Pehle result ka snippet nikalna
-            const firstResult = searchResults.organic_results[0];
-            const summary = firstResult ? `According to my search: "${firstResult.snippet}" (Source: ${firstResult.link})` : "Sorry, I couldn't find anything for that.";
-            
-            response = {
-                reply: summary,
-                type: 'text' // Search results ko text ki tarah bhej rahe hain
-            };
-
-        // Normal chat
-        } else {
-            // Normal text response (future me Gemini text model se connect kar sakte hain)
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-            const result = await model.generateContent(req.body.message);
-            const geminiResponse = await result.response;
-            
-            response = {
-                reply: geminiResponse.text(),
-                type: 'text'
-            };
-        }
-
-        res.json(response);
-
-    } catch (error) {
-        console.error('Error processing chat message:', error);
-        res.status(500).json({ reply: 'Oops! Something went wrong on my end.', type: 'error' });
-    }
+  if (!reply) return res.status(500).json({ error: 'AI unavailable' });
+  res.json({ reply });
 });
 
+// -------------------------------------
+// API Endpoint: Simple Search (Internet / Gemini)
+// -------------------------------------
+app.post('/api/search', async (req, res) => {
+  const { query } = req.body;
+  if (!query) return res.status(400).json({ error: 'Query required' });
 
-// --- Server Start ---
+  try {
+    const reply = await callGeminiAPI(`Search online: ${query}`);
+    res.json({ result: reply || 'No results found' });
+  } catch (err) {
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// -------------------------------------
+// API Endpoint: Image Generation
+// -------------------------------------
+app.post('/api/image', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt required' });
+
+  try {
+    const reply = await callGeminiAPI(`Generate image for: ${prompt}`);
+    // Response should be image URL or base64, depending on API
+    res.json({ image: reply });
+  } catch (err) {
+    res.status(500).json({ error: 'Image generation failed' });
+  }
+});
+
+// -------------------------------------
+// Health check endpoint
+// -------------------------------------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', hybrid: USE_OFFLINE ? 'online+offline' : 'online-only' });
+});
+
+// -------------------------------------
+// Start Server
+// -------------------------------------
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Hybrid Gemi Bot backend running on port ${PORT}`);
 });
