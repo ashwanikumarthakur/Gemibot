@@ -1,0 +1,31 @@
+{
+  "name": "gemi-hybrid-bot",
+  "version": "1.0.0",
+  "description": "Hybrid AI Chatbot using Gemini API + TinyLlama offline",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "AI",
+    "Chatbot",
+    "Gemini",
+    "TinyLlama",
+    "Hybrid"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
