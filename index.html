@@ -1,56 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemibot - Real-time Chat</title>
-    <!-- CSS file ko link kiya hai -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemi Chat</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Lordicon library -->
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
 </head>
+
 <body>
+  <div class="chat-container" id="chatBox">
+    <!-- Header -->
+    <div class="header">
+      <div class="gemi-logo">
+        <h1>Gemi</h1>
+      </div>
 
-    <div class="chat-container">
-        <!-- Chat ka Header -->
-        <div class="chat-header">
-            <h3>Gemibot 🤖</h3>
-        </div>
-
-        <!-- 
-            Yahan saare real messages JavaScript ke through load honge.
-            Ise ab khali rakha gaya hai, sirf ek welcome message ke saath.
-        -->
-        <div class="chat-messages" id="chat-messages-container">
-            <div class="message received">
-                <div class="sender-name">Gemibot</div>
-                <div class="message-bubble">
-                   Hello! I'm ready to chat. You can ask me anything or use commands like <strong>/search &lt;query&gt;</strong> or <strong>/image &lt;prompt&gt;</strong>.
-                </div>
-                 <span class="timestamp">Just now</span>
-            </div>
-        </div>
-
-        <!-- Message likhne aur bhejne ka form (isme koi badlav nahi) -->
-        <form class="chat-input-form" id="message-form">
-            <input 
-                type="text" 
-                id="message-input" 
-                class="message-input" 
-                placeholder="Type your message here..."
-                autocomplete="off"
-                autofocus 
-            >
-            <button type="submit" class="send-btn" title="Send">
-                <!-- Send Button ke liye SVG Icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="24" height="24" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
-        </form>
+      <!-- Menu Icon -->
+      <div class="menu-icon" id="menuToggle">
+        <svg width="30" height="30" viewBox="0 0 100 100" class="hamburger-svg">
+          <path class="line line1"
+                d="M 20,29 H 80 C 80,29 90,29 90,39 C 90,49 80,49 80,49 H 20 C 20,49 10,49 10,39 C 10,29 20,29 20,29 Z"/>
+          <path class="line line2" d="M 20,50 H 80"/>
+          <path class="line line3"
+                d="M 20,71 H 80 C 80,71 90,71 90,61 C 90,51 80,51 80,51 H 20 C 20,51 10,51 10,61 C 10,71 20,71 20,71 Z"/>
+        </svg>
+      </div>
     </div>
 
-    <!-- Socket.IO client library (yeh zaroori hai) -->
-    <script src="/socket.io/socket.io.js"></script>
-    
-    <!-- Aapka JavaScript file (yeh messages ko handle karega) -->
-    <script src="script.js"></script>
+    <!-- Slide Menu -->
+    <div class="menu-panel" id="menuPanel">
+      <div class="menu-item" id="themeSwitch">
+        <lord-icon
+          src="https://cdn.lordicon.com/hbvyhtse.json"
+          trigger="hover"
+          colors="primary:#ffffff,secondary:#66ccff"
+          style="width:26px;height:26px;margin-right:8px">
+        </lord-icon>
+        Switch Theme
+      </div>
 
+      <div class="menu-item" id="wallpaperBtn">
+        <lord-icon
+          src="https://cdn.lordicon.com/qhgmphtg.json"
+          trigger="hover"
+          colors="primary:#ffffff,secondary:#66ccff"
+          style="width:26px;height:26px;margin-right:8px">
+        </lord-icon>
+        Change Wallpaper
+      </div>
+
+      <div class="menu-item">
+        <label>
+          <lord-icon
+            src="https://cdn.lordicon.com/rmzhcgbh.json"
+            trigger="hover"
+            colors="primary:#ffffff,secondary:#66ccff"
+            style="width:26px;height:26px;margin-right:8px">
+          </lord-icon>
+          Upload Wallpaper
+          <input type="file" id="uploadWallpaper" accept="image/*" hidden />
+        </label>
+      </div>
+    </div>
+
+    <!-- Wallpaper Menu -->
+    <div class="wallpaper-menu" id="wallpaperMenu">
+      <img src="https://images.unsplash.com/photo-1503264116251-35a269479413?w=1600" alt="wp1" />
+      <img src="https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=1600" alt="wp2" />
+      <img src="https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?w=1600" alt="wp3" />
+    </div>
+
+    <!-- Messages -->
+    <div class="messages" id="messages">
+      <div class="bot msg">Hey, I'm <b>Gemi</b> 👋 — ready to chat!</div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <input type="text" id="userInput" placeholder="Type a message..." />
+      <button id="sendBtn">
+        <lord-icon
+          src="https://cdn.lordicon.com/zmkotitn.json"
+          trigger="hover"
+          colors="primary:#ffffff,secondary:#66ccff"
+          style="width:30px;height:30px">
+        </lord-icon>
+      </button>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
 </body>
 </html>
