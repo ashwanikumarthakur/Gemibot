@@ -1,16 +1,30 @@
+// --- Global Variables (Yahan Render URL dalna hai) ---
+// RENDER_API_BASE_URL: Aapka live Render URL (Example: 'https://gemi-assistant.onrender.com')
+const RENDER_API_BASE_URL = "https://gemi-backend.onrender.com"; 
+
+// Session ID: Chat history ko maintain karne ke liye zaruri
+let currentSessionId = localStorage.getItem('sessionId');
+if (!currentSessionId) {
+    currentSessionId = 'session_' + Date.now() + Math.floor(Math.random() * 100000);
+    localStorage.setItem('sessionId', currentSessionId);
+}
+
+
 // ====== DOM Elements ======
 const sendBtn = document.getElementById("sendBtn");
 const userInput = document.getElementById("userInput");
 const messages = document.getElementById("messages");
-const themeSwitch = document.getElementById("themeSwitch");
 const chatBox = document.getElementById("chatBox");
+// ... (Baaki DOM elements jo aapke HTML mein hain) ... 
+const themeSwitch = document.getElementById("themeSwitch");
 const wallpaperBtn = document.getElementById("wallpaperBtn");
 const wallpaperMenu = document.getElementById("wallpaperMenu");
 const uploadWallpaper = document.getElementById("uploadWallpaper");
 const menuToggle = document.getElementById("menuToggle");
 const menuPanel = document.getElementById("menuPanel");
 
-// ====== Send Message ======
+
+// ====== Send Message (Main Entry Point) ======
 sendBtn.onclick = sendMessage;
 userInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") sendMessage();
@@ -19,37 +33,80 @@ userInput.addEventListener("keypress", (e) => {
 function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
-  appendMessage(text, "user");
-  userInput.value = "";
-  gemiReply(text);
+  appendMessage(text, "user"); // User ka message screen par dikhao
+  userInput.value = ""; // Input box khali karo
+  userInput.focus(); // Mobile keyboard ko active rakho
+  
+  gemiReply(text); // Backend ko call karo
 }
 
+// ====== Message Append (No change) ======
 function appendMessage(text, sender) {
   const div = document.createElement("div");
-  div.className = sender + " msg";
-  div.textContent = text;
+  // Yahan aapko className ko apne CSS ke hisaab se adjust karna padega
+  // Aapke CSS/HTML mein shayad 'user msg' ya 'received msg' class hogi
+  div.className = sender === 'user' ? "sent msg" : "received msg"; 
+  div.textContent = text; 
   messages.appendChild(div);
   scrollToBottom();
 }
 
-function gemiReply(text) {
-  // Typing indicator
+// ====== Gemi Reply: Ab API Call karega ======
+async function gemiReply(userMessage) {
+  if (!RENDER_API_BASE_URL.startsWith('http')) {
+      // Safety check agar URL dalna bhool gaye ho
+      typeWriter("ERROR: Render API URL set nahi hai! Please URL daalein.", "bot");
+      return;
+  }
+    
+  // 1. Typing indicator
   const typing = document.createElement("div");
-  typing.className = "bot msg";
+  typing.className = "bot msg"; // CSS mein 'bot msg' aur uske andar 'typing' class define karein
   typing.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
   messages.appendChild(typing);
   scrollToBottom();
 
-  // Simulate bot typing delay
-  setTimeout(() => {
-    typing.remove();
-    typeWriter("Hmm... interesting! You said: " + text, "bot");
-  }, 1500);
+  try {
+      // 2. API Call (Python Backend ko)
+      const response = await fetch(`${RENDER_API_BASE_URL}/chat`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+              message: userMessage,
+              sessionId: currentSessionId // Har request ke saath session ID bhej rahe hain
+          })
+      });
+
+      // 3. Response ka data
+      const data = await response.json();
+      
+      // 4. Typing indicator ko hatao
+      typing.remove();
+
+      if (response.ok) {
+          // Success: Gemi ka jawab typeWriter se dikhao
+          typeWriter(data.reply, "bot");
+      } else {
+          // Error: Error message dikhao
+          typeWriter(`API Error: ${data.reply}`, "bot");
+      }
+
+  } catch (error) {
+      // 4. Typing indicator ko hatao
+      typing.remove();
+      // Network ya CORS error
+      typeWriter(`Network Error: Backend se baat nahi ho paayi. Error: ${error.message}`, "bot");
+  }
 }
 
+
+// ====== Type Writer (No change - Ab asli jawab type karega) ======
 function typeWriter(text, sender) {
   const div = document.createElement("div");
-  div.className = sender + " msg";
+  // Yahan bhi CSS classes ko adjust karein
+  div.className = sender === 'user' ? "sent msg" : "received msg"; 
   messages.appendChild(div);
   let i = 0;
   const interval = setInterval(() => {
@@ -59,12 +116,13 @@ function typeWriter(text, sender) {
   }, 35);
 }
 
-// ====== Scroll Always to Bottom ======
+// ====== Scroll Always to Bottom (No change) ======
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-// ====== Theme Switch ======
+// ====== Theme Switch, Wallpaper, Menu Toggle (No change) ======
+// ... (Aapka baki ka sara JavaScript code jaisa ka waisa rahega) ...
 themeSwitch.onclick = () => {
   document.body.classList.toggle("light");
 };
@@ -108,11 +166,11 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ====== Mobile Keyboard Behavior ======
+// ====== Mobile Keyboard Behavior (No change) ======
 userInput.addEventListener("focus", () => {
   setTimeout(() => {
     scrollToBottom();
-    document.querySelector(".input-area").scrollIntoView({
+    document.querySelector(".chat-input-form").scrollIntoView({ // Input area ka parent
       behavior: "smooth",
       block: "end"
     });
@@ -123,3 +181,6 @@ userInput.addEventListener("focus", () => {
 window.visualViewport?.addEventListener("resize", () => {
   scrollToBottom();
 });
+
+// Initial focus to trigger mobile keyboard on load
+userInput.focus();
