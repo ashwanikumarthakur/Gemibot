@@ -1,21 +1,20 @@
-// --- Global Variables (Yahan Render URL dalna hai) ---
-// RENDER_API_BASE_URL: Aapka live Render URL (Example: 'https://gemi-assistant.onrender.com')
+// --- Global Variables ---
+// RENDER_API_BASE_URL: Aapka Backend URL
 const RENDER_API_BASE_URL = "https://gemi-backend.onrender.com"; 
 
-// Session ID: Chat history ko maintain karne ke liye zaruri
+// Session ID generate karna
 let currentSessionId = localStorage.getItem('sessionId');
 if (!currentSessionId) {
     currentSessionId = 'session_' + Date.now() + Math.floor(Math.random() * 100000);
     localStorage.setItem('sessionId', currentSessionId);
 }
 
-
 // ====== DOM Elements ======
 const sendBtn = document.getElementById("sendBtn");
 const userInput = document.getElementById("userInput");
 const messages = document.getElementById("messages");
 const chatBox = document.getElementById("chatBox");
-// ... (Baaki DOM elements jo aapke HTML mein hain) ... 
+// Menu & Theme Elements
 const themeSwitch = document.getElementById("themeSwitch");
 const wallpaperBtn = document.getElementById("wallpaperBtn");
 const wallpaperMenu = document.getElementById("wallpaperMenu");
@@ -23,8 +22,7 @@ const uploadWallpaper = document.getElementById("uploadWallpaper");
 const menuToggle = document.getElementById("menuToggle");
 const menuPanel = document.getElementById("menuPanel");
 
-
-// ====== Send Message (Main Entry Point) ======
+// ====== Send Message Logic ======
 sendBtn.onclick = sendMessage;
 userInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") sendMessage();
@@ -33,104 +31,152 @@ userInput.addEventListener("keypress", (e) => {
 function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
-  appendMessage(text, "user"); // User ka message screen par dikhao
-  userInput.value = ""; // Input box khali karo
-  userInput.focus(); // Mobile keyboard ko active rakho
   
-  gemiReply(text); // Backend ko call karo
+  // User ka message dikhayein
+  appendMessage(text, "user"); 
+  userInput.value = ""; 
+  userInput.focus(); 
+  
+  // Backend function call karein
+  gemiReply(text); 
 }
 
-// ====== Message Append (No change) ======
-function appendMessage(text, sender) {
+// ====== Message Append Helper ======
+// Ab ye HTML support karega (images ke liye)
+function appendMessage(content, sender, isImage = false) {
   const div = document.createElement("div");
-  // Yahan aapko className ko apne CSS ke hisaab se adjust karna padega
-  // Aapke CSS/HTML mein shayad 'user msg' ya 'received msg' class hogi
   div.className = sender === 'user' ? "sent msg" : "received msg"; 
-  div.textContent = text; 
+  
+  if (isImage) {
+      div.innerHTML = content; // Image HTML sidha dalenge
+      div.classList.add("image-msg"); // CSS styling ke liye
+  } else {
+      div.textContent = content; // Text safety ke liye
+  }
+  
   messages.appendChild(div);
   scrollToBottom();
+  return div; // Div return kar rahe hain taki baad me edit kar sakein
 }
 
-// ====== Gemi Reply: Ab API Call karega ======
+// ====== MAIN AI LOGIC (Chat + Image) ======
 async function gemiReply(userMessage) {
-  if (!RENDER_API_BASE_URL.startsWith('http')) {
-      // Safety check agar URL dalna bhool gaye ho
-      typeWriter("ERROR: Render API URL set nahi hai! Please URL daalein.", "bot");
-      return;
+  
+  // 1. Determine Endpoint (Chat ya Image?)
+  const lowerMsg = userMessage.toLowerCase();
+  let apiEndpoint = `${RENDER_API_BASE_URL}/api/chat`; // Default: Text Chat
+  let isImageRequest = false;
+
+  // Agar user image maang raha hai
+  if (lowerMsg.includes("draw") || lowerMsg.includes("generate image") || lowerMsg.includes("create image") || lowerMsg.startsWith("image of")) {
+      isImageRequest = true;
+      apiEndpoint = `${RENDER_API_BASE_URL}/api/generate-image`;
   }
-    
-  // 1. Typing indicator
-  const typing = document.createElement("div");
-  typing.className = "bot msg"; // CSS mein 'bot msg' aur uske andar 'typing' class define karein
-  typing.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
-  messages.appendChild(typing);
+
+  // 2. Typing Indicator dikhayein
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "received msg typing-anim";
+  typingDiv.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+  messages.appendChild(typingDiv);
   scrollToBottom();
 
   try {
-      // 2. API Call (Python Backend ko)
-      const response = await fetch(`${RENDER_API_BASE_URL}/chat`, {
+      // 3. Prompt Clean karna (Sirf Image ke liye)
+      // "Draw a cat" -> "a cat" (Taaki AI confuse na ho)
+      let finalPrompt = userMessage;
+      if (isImageRequest) {
+          finalPrompt = userMessage.replace(/draw|generate image of|create image of|make an image of/gi, "").trim();
+      }
+
+      // 4. API Call
+      const response = await fetch(apiEndpoint, {
           method: 'POST',
-          headers: {
-              'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-              message: userMessage,
-              sessionId: currentSessionId // Har request ke saath session ID bhej rahe hain
+              prompt: finalPrompt, // Backend "prompt" expect karta hai
+              sessionId: currentSessionId
           })
       });
 
-      // 3. Response ka data
       const data = await response.json();
       
-      // 4. Typing indicator ko hatao
-      typing.remove();
+      // Typing hatayein
+      typingDiv.remove();
 
       if (response.ok) {
-          // Success: Gemi ka jawab typeWriter se dikhao
-          typeWriter(data.reply, "bot");
+          if (isImageRequest && data.imageUrl) {
+              // --- IMAGE HANDLING ---
+              const imgHTML = `
+                <div class="ai-image-container">
+                    <img src="${data.imageUrl}" alt="Generated Art" onload="scrollToBottom()">
+                    <a href="${data.imageUrl}" download="gemi-art.jpg" class="download-btn">Download HD</a>
+                </div>
+              `;
+              appendMessage(imgHTML, "bot", true);
+          } else {
+              // --- TEXT HANDLING (Rich Text) ---
+              // Typewriter effect ke sath formatting
+              typeWriterWithFormatting(data.reply || data.text, "bot");
+          }
       } else {
-          // Error: Error message dikhao
-          typeWriter(`API Error: ${data.reply}`, "bot");
+          appendMessage(`Error: ${data.error || "Kuch gadbad ho gayi."}`, "bot");
       }
 
   } catch (error) {
-      // 4. Typing indicator ko hatao
-      typing.remove();
-      // Network ya CORS error
-      typeWriter(`Network Error: Backend se baat nahi ho paayi. Error: ${error.message}`, "bot");
+      typingDiv.remove();
+      appendMessage(`Network Error: Server se connect nahi ho pa raha. (Shayad Server Sleep mode me hai, 1 min baad try karein).`, "bot");
+      console.error(error);
   }
 }
 
+// ====== Smart Typewriter (Markdown Support) ======
+function typeWriterWithFormatting(text, sender) {
+    const div = document.createElement("div");
+    div.className = "received msg";
+    messages.appendChild(div);
 
-// ====== Type Writer (No change - Ab asli jawab type karega) ======
-function typeWriter(text, sender) {
-  const div = document.createElement("div");
-  // Yahan bhi CSS classes ko adjust karein
-  div.className = sender === 'user' ? "sent msg" : "received msg"; 
-  messages.appendChild(div);
-  let i = 0;
-  const interval = setInterval(() => {
-    div.textContent = text.slice(0, i++);
-    scrollToBottom();
-    if (i > text.length) clearInterval(interval);
-  }, 35);
+    let i = 0;
+    // Speed thoda tez kiya hai (20ms) taki boring na lage
+    const interval = setInterval(() => {
+        // Hum plain text type karenge pehle
+        div.textContent = text.slice(0, i++);
+        scrollToBottom();
+
+        if (i > text.length) {
+            clearInterval(interval);
+            // JAB TYPING KHATAM HO JAYE -> FORMATTING APPLY KAREIN
+            // Ye function text ko HTML me badal dega (Bold, Code, etc.)
+            div.innerHTML = parseMarkdown(text); 
+        }
+    }, 20);
 }
 
-// ====== Scroll Always to Bottom (No change) ======
+// ====== Markdown Parser (Text ko sundar banane ke liye) ======
+function parseMarkdown(text) {
+    if (!text) return "";
+    return text
+        // Bold: **text** -> <b>text</b>
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        // Italic: *text* -> <i>text</i>
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        // Code Block: ```code``` -> <pre>code</pre>
+        .replace(/```([\s\S]*?)```/g, '<div class="code-block"><pre>$1</pre></div>')
+        // Inline Code: `text` -> <code>text</code>
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        // New Lines: \n -> <br>
+        .replace(/\n/g, '<br>');
+}
+
+// ====== Scroll Helper ======
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-// ====== Theme Switch, Wallpaper, Menu Toggle (No change) ======
-// ... (Aapka baki ka sara JavaScript code jaisa ka waisa rahega) ...
-themeSwitch.onclick = () => {
-  document.body.classList.toggle("light");
-};
+// ====== Theme & Menu Logic (Purana Code) ======
+themeSwitch.onclick = () => { document.body.classList.toggle("light"); };
 
-// ====== Wallpaper Menu ======
 wallpaperBtn.onclick = () => {
-  wallpaperMenu.style.display =
-    wallpaperMenu.style.display === "flex" ? "none" : "flex";
+  wallpaperMenu.style.display = wallpaperMenu.style.display === "flex" ? "none" : "flex";
 };
 
 document.querySelectorAll(".wallpaper-menu img").forEach((img) => {
@@ -151,14 +197,12 @@ uploadWallpaper.onchange = (e) => {
   wallpaperMenu.style.display = "none";
 };
 
-// ====== Hamburger Menu Toggle ======
 menuToggle.addEventListener("click", () => {
   menuToggle.classList.toggle("active");
   menuPanel.classList.toggle("show");
-  wallpaperMenu.style.display = "none"; // close wallpaper menu if open
+  wallpaperMenu.style.display = "none";
 });
 
-// ====== Close menu when clicking outside ======
 document.addEventListener("click", (e) => {
   if (!menuPanel.contains(e.target) && !menuToggle.contains(e.target)) {
     menuPanel.classList.remove("show");
@@ -166,21 +210,13 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ====== Mobile Keyboard Behavior (No change) ======
+// Mobile Keyboard Adjustments
 userInput.addEventListener("focus", () => {
   setTimeout(() => {
     scrollToBottom();
-    document.querySelector(".chat-input-form").scrollIntoView({ // Input area ka parent
-      behavior: "smooth",
-      block: "end"
-    });
+    // Scroll view adjustment
+    if(document.querySelector(".chat-input-form")) {
+        document.querySelector(".chat-input-form").scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, 300);
 });
-
-// Prevent layout jump when keyboard hides
-window.visualViewport?.addEventListener("resize", () => {
-  scrollToBottom();
-});
-
-// Initial focus to trigger mobile keyboard on load
-userInput.focus();
