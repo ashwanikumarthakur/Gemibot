@@ -1,4 +1,6 @@
-/* ==== Base Reset ==== */
+/* =========================================
+   1. BASE RESET & VARIABLES (Purana Code)
+   ========================================= */
 * {
   margin: 0;
   padding: 0;
@@ -12,6 +14,12 @@ body {
   --chat-bg: rgba(255, 255, 255, 0.08);
   --user-msg-bg: #007AFF;
   --bot-msg-bg: #2a2a2a;
+  
+  /* New Colors for Formatting */
+  --code-bg: #1e1e1e;
+  --code-text: #00ff9d;
+  --bold-text: #ffd700; /* Gold for Dark Mode */
+  
   background: var(--bg);
   color: var(--text);
   transition: background 0.3s ease, color 0.3s ease;
@@ -24,12 +32,17 @@ body.light {
   --chat-bg: rgba(0, 0, 0, 0.05);
   --user-msg-bg: royalblue;
   --bot-msg-bg: #eaeaea;
+  
+  /* Light Mode Formatting Colors */
+  --code-bg: #2d2d2d;
+  --code-text: #a6e22e;
+  --bold-text: #0056b3; /* Blue for Light Mode */
 }
 
 /* ==== Chat Container ==== */
 .chat-container {
   width: 100%;
-  height: 100dvh; /* dvh is dynamic viewport height – mobile safe */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -71,25 +84,12 @@ body.light {
   letter-spacing: 0.5px;
 }
 
-/* ==== Menu Icon (Hamburger) ==== */
-.menu-icon {
-  cursor: pointer;
-}
-
-.hamburger-svg .line {
-  fill: var(--text);
-  transition: all 0.3s ease;
-}
-
-.menu-icon.active .line1 {
-  transform: translateY(20px) rotate(45deg);
-}
-.menu-icon.active .line2 {
-  opacity: 0;
-}
-.menu-icon.active .line3 {
-  transform: translateY(-20px) rotate(-45deg);
-}
+/* ==== Menu Icon ==== */
+.menu-icon { cursor: pointer; }
+.hamburger-svg .line { fill: var(--text); transition: all 0.3s ease; }
+.menu-icon.active .line1 { transform: translateY(20px) rotate(45deg); }
+.menu-icon.active .line2 { opacity: 0; }
+.menu-icon.active .line3 { transform: translateY(-20px) rotate(-45deg); }
 
 /* ==== Slide Menu Panel ==== */
 .menu-panel {
@@ -107,10 +107,7 @@ body.light {
   transition: right 0.3s ease;
   z-index: 9;
 }
-
-.menu-panel.show {
-  right: 0;
-}
+.menu-panel.show { right: 0; }
 
 .menu-item {
   display: flex;
@@ -123,40 +120,27 @@ body.light {
   cursor: pointer;
   transition: background 0.3s;
 }
-
-.menu-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+.menu-item:hover { background: rgba(255, 255, 255, 0.2); }
 
 /* ==== Wallpaper Menu ==== */
 .wallpaper-menu {
   position: absolute;
-  top: 70px;
-  right: 10px;
+  top: 70px; right: 10px;
   display: none;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: column; gap: 10px;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 10px; padding: 10px;
   z-index: 20;
 }
-
 .wallpaper-menu img {
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  object-fit: cover;
-  cursor: pointer;
-  transition: transform 0.2s ease;
+  width: 80px; height: 80px;
+  border-radius: 8px; object-fit: cover;
+  cursor: pointer; transition: transform 0.2s ease;
 }
+.wallpaper-menu img:hover { transform: scale(1.08); }
 
-.wallpaper-menu img:hover {
-  transform: scale(1.08);
-}
-
-/* ==== Messages ==== */
+/* ==== Messages Area ==== */
 .messages {
   flex: 1;
   padding: 15px;
@@ -169,30 +153,132 @@ body.light {
 }
 
 .msg {
-  max-width: 80%;
+  max-width: 85%; /* Thoda bada kiya image ke liye */
   padding: 12px 16px;
-  border-radius: 24px;
+  border-radius: 18px;
   font-size: 15px;
-  line-height: 1.4;
+  line-height: 1.5;
   word-wrap: break-word;
   animation: fadeIn 0.3s ease;
 }
 
-.user {
+.sent {
   align-self: flex-end;
   background: var(--user-msg-bg);
   color: #fff;
+  border-bottom-right-radius: 4px;
 }
-.bot {
+.received {
   align-self: flex-start;
   background: var(--bot-msg-bg);
   color: var(--text);
+  border-bottom-left-radius: 4px;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* =========================================
+   🔥 NEW FEATURES: AI IMAGE STYLING
+   ========================================= */
+
+.ai-image-container {
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.ai-image-container img {
+    width: 100%;
+    height: auto;
+    display: block; /* Gap remove karne ke liye */
+    transition: transform 0.3s;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: var(--user-msg-bg); /* Matches user theme */
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.download-btn:hover {
+    background: #0056b3;
+}
+
+/* =========================================
+   🔥 NEW FEATURES: RICH TEXT FORMATTING
+   ========================================= */
+
+/* Bold Text Styling */
+.msg b, .msg strong {
+    font-weight: 700;
+    color: var(--bold-text);
+}
+
+/* Italic Text */
+.msg i, .msg em {
+    font-style: italic;
+    opacity: 0.9;
+}
+
+/* Code Blocks (```code```) */
+.code-block {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 12px;
+    border-radius: 8px;
+    margin: 8px 0;
+    overflow-x: auto; /* Mobile pe scroll karne ke liye */
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-block pre {
+    margin: 0;
+    white-space: pre-wrap; /* Code wrap karega */
+}
+
+/* Inline Code (`code`) */
+.msg code {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #ff7b72;
+}
+
+body.light .msg code {
+    background: rgba(0, 0, 0, 0.1);
+    color: #d63384;
+}
+
+/* Link Styling */
+.msg a {
+    color: #4da6ff;
+    text-decoration: underline;
+}
+
+/* =========================================
+   END NEW FEATURES
+   ========================================= */
 
 /* ==== Input Area ==== */
 .input-area {
