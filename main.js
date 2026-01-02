@@ -1,19 +1,21 @@
 // --- Global Variables ---
-// RENDER_API_BASE_URL: Aapka Backend URL
+// RENDER_API_BASE_URL: Aapka Live Backend URL
 const RENDER_API_BASE_URL = "https://gemi-backend.onrender.com"; 
 
-// Session ID logic (Same as before)
+// Session ID logic (optional but good for tracking)
 let currentSessionId = localStorage.getItem('sessionId');
 if (!currentSessionId) {
     currentSessionId = 'session_' + Date.now() + Math.floor(Math.random() * 100000);
     localStorage.setItem('sessionId', currentSessionId);
 }
 
-// ====== DOM Elements (Same as before) ======
+// ====== DOM Elements ======
 const sendBtn = document.getElementById("sendBtn");
 const userInput = document.getElementById("userInput");
 const messages = document.getElementById("messages");
 const chatBox = document.getElementById("chatBox");
+
+// Theme & Wallpaper Elements
 const themeSwitch = document.getElementById("themeSwitch");
 const wallpaperBtn = document.getElementById("wallpaperBtn");
 const wallpaperMenu = document.getElementById("wallpaperMenu");
@@ -22,7 +24,7 @@ const menuToggle = document.getElementById("menuToggle");
 const menuPanel = document.getElementById("menuPanel");
 
 
-// ====== Send Message Logic (Same as before) ======
+// ====== Send Message Logic ======
 sendBtn.onclick = sendMessage;
 userInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") sendMessage();
@@ -31,49 +33,30 @@ userInput.addEventListener("keypress", (e) => {
 function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
+  
+  // User ka message screen par dikhao
   appendMessage(text, "user"); 
   userInput.value = ""; 
   userInput.focus(); 
   
-  gemiReply(text); // Backend Call
+  // Backend ko call karo
+  gemiReply(text); 
 }
 
-// ====== Message Append (Thoda update kiya images ke liye) ======
-function appendMessage(content, sender, isImage = false) {
+// ====== Message Append Helper ======
+function appendMessage(text, sender) {
   const div = document.createElement("div");
-  // Classes wahi hain jo aapne di thin
+  // Classes wahi hain jo aapke CSS me thin ('sent msg' aur 'received msg')
   div.className = sender === 'user' ? "sent msg" : "received msg"; 
-  
-  if (isImage) {
-    // Agar image hai to HTML set karo
-    div.innerHTML = content;
-    div.style.background = "transparent"; // Image ke piche background hataya
-    div.style.padding = "0";
-  } else {
-    // Agar text hai to text set karo
-    div.textContent = content; 
-  }
-  
+  div.textContent = text; 
   messages.appendChild(div);
   scrollToBottom();
-  return div;
 }
 
-// ====== Gemi Reply: MAIN LOGIC (Yahan Naya Feature Joda Hai) ======
+// ====== Main API Call Function ======
 async function gemiReply(userMessage) {
-  
-  // 1. Check: User Image mang raha hai ya Text?
-  const lowerMsg = userMessage.toLowerCase();
-  let apiEndpoint = `${RENDER_API_BASE_URL}/api/chat`; // Default: Chat
-  let isImageRequest = false;
-
-  // Agar user ne 'draw' ya 'generate image' likha hai
-  if (lowerMsg.includes("draw") || lowerMsg.includes("generate image") || lowerMsg.includes("create image")) {
-      isImageRequest = true;
-      apiEndpoint = `${RENDER_API_BASE_URL}/api/generate-image`;
-  }
     
-  // 2. Typing indicator (Wahi purana wala)
+  // 1. Typing indicator dikhao
   const typing = document.createElement("div");
   typing.className = "received msg"; 
   typing.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
@@ -81,95 +64,58 @@ async function gemiReply(userMessage) {
   scrollToBottom();
 
   try {
-      // Prompt ko saaf karna (Agar image hai)
-      let finalPrompt = userMessage;
-      if (isImageRequest) {
-          finalPrompt = userMessage.replace(/draw|generate image of|create image of/gi, "").trim();
-      }
-
-      // 3. API Call
-      const response = await fetch(apiEndpoint, {
+      // 2. Fetch Request bhejo (Original Endpoint: /api/chat)
+      const response = await fetch(`${RENDER_API_BASE_URL}/api/chat`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
           },
+          // IMPORTANT: Backend 'prompt' maangta hai, isliye hum 'prompt' bhej rahe hain
           body: JSON.stringify({ 
-              prompt: finalPrompt,  // NOTE: Yahan 'message' ki jagah 'prompt' bheja hai taki Python backend samjh sake
-              sessionId: currentSessionId 
+              prompt: userMessage 
           })
       });
 
       const data = await response.json();
       
-      // Typing hatao
+      // 3. Typing indicator hatao
       typing.remove();
 
       if (response.ok) {
-          if (isImageRequest && data.imageUrl) {
-             // === IMAGE AAYI HAI ===
-             const imgHTML = `
-                <div class="ai-image-container" style="border-radius:10px; overflow:hidden;">
-                    <img src="${data.imageUrl}" style="width:100%; display:block;" alt="Generated Art">
-                    <a href="${data.imageUrl}" download="art.jpg" style="display:block; background:#007AFF; color:white; text-align:center; padding:8px; text-decoration:none; font-size:14px;">Download Image</a>
-                </div>
-             `;
-             appendMessage(imgHTML, "bot", true);
-
-          } else {
-             // === TEXT AAYA HAI ===
-             // (data.reply) aapke naye backend se aa raha hai
-             typeWriter(data.reply || data.text, "bot");
-          }
+          // Success: Text ko typewriter effect me dikhao
+          typeWriter(data.reply, "bot");
       } else {
-          typeWriter(`Error: ${data.error || "Server issue"}`, "bot");
+          // Error: Server error message dikhao
+          typeWriter(`Error: ${data.error || "Something went wrong"}`, "bot");
       }
 
   } catch (error) {
       typing.remove();
-      typeWriter(`Network Error: ${error.message}. Check console.`, "bot");
+      typeWriter(`Network Error: Backend connect nahi ho raha.`, "bot");
+      console.error(error);
   }
 }
 
-
-// ====== Type Writer (Markdown Formatter Joda Hai) ======
+// ====== Type Writer Effect (Original) ======
 function typeWriter(text, sender) {
   const div = document.createElement("div");
   div.className = sender === 'user' ? "sent msg" : "received msg"; 
   messages.appendChild(div);
   
   let i = 0;
-  // Speed 35ms se 20ms kar di thodi fast typing ke liye
   const interval = setInterval(() => {
-    // Jab tak type ho raha hai, plain text dikhao
     div.textContent = text.slice(0, i++);
     scrollToBottom();
-    
-    if (i > text.length) {
-        clearInterval(interval);
-        // === TYPING KHATAM HONE PAR FORMATTING LAGA DO ===
-        // Ye **bold** ko <b>bold</b> me badal dega
-        div.innerHTML = parseSimpleMarkdown(text);
-    }
-  }, 20);
+    if (i > text.length) clearInterval(interval);
+  }, 30); // Speed control
 }
 
-// === Chota sa function Text ko sundar banane ke liye ===
-function parseSimpleMarkdown(text) {
-    if(!text) return "";
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')   // Bold
-        .replace(/\*(.*?)\*/g, '<i>$1</i>')       // Italic
-        .replace(/```([\s\S]*?)```/g, '<pre style="background:#222; color:#0f0; padding:10px; border-radius:5px; overflow-x:auto;">$1</pre>') // Code Block
-        .replace(/\n/g, '<br>');                  // New lines
-}
-
-
-// ====== Scroll Always to Bottom (Same) ======
+// ====== Scroll Helper ======
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-// ====== Theme, Wallpaper, Menu Logic (Bilkul Waisa Hi) ======
+// ====== UI Interaction Logic (Theme, Menu, etc.) ======
 themeSwitch.onclick = () => {
   document.body.classList.toggle("light");
 };
@@ -210,10 +156,11 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// Mobile Keyboard Focus Fix
 userInput.addEventListener("focus", () => {
   setTimeout(() => {
     scrollToBottom();
-    const form = document.querySelector(".chat-input-form"); // Agar class alag hai to check kar lena
+    const form = document.querySelector(".input-area"); 
     if(form) form.scrollIntoView({ behavior: "smooth", block: "end" });
   }, 300);
 });
